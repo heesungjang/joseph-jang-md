@@ -14,7 +14,7 @@ import lustre/element/html.{
 
 pub fn homepage(posts: List(Post)) -> Element(a) {
   with_body(
-    "Giacomo Cavalieri",
+    "Joseph Jang",
     "A personal blog where I share my thoughts as I jump from one obsession to the other",
     [homepage_header(), main([], [post.to_preview_list(posts)])],
   )
@@ -72,13 +72,10 @@ fn homepage_header() -> Element(a) {
       text("!"),
     ])
 
-  let profile_section = 
+  let profile_section =
     div([id("homepage-profile-section")], [
       profile_picture(),
-      div([id("homepage-text-content")], [
-        subtitle,
-        title,
-      ]),
+      div([id("homepage-text-content")], [subtitle, title]),
     ])
 
   header([id("homepage-header"), class("h-card p-author")], [
