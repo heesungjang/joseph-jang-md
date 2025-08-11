@@ -431,6 +431,8 @@ export default function Counter() {
 
 The Counter component uses useDispatch and useSelector to read the state from the store and dispatch the INCREMENT action. This entire process is facilitated by the store provided by the StoreProvider.
 
+
+
 By implementing the core concepts of Redux, such as the Observable pattern and Provider pattern, we gained a better understanding of how Redux works. The Observable pattern involves observing changes in an object's state and notifying observers whenever there is a change. Redux uses this pattern to implement its core state management logic. This pattern is widely used not only in Redux but also in many other places, making it a valuable tool for solving event-handling problems.
 
 The Provider pattern, based on React's Context API, is a method to provide state or functionality globally across an application. As we saw while implementing Redux-React, this pattern allows for easy access and management of global state, such as the Redux store, across the entire React component tree. The Provider pattern is also used in various component design patterns, like Compound Components, making it a highly versatile pattern that is worth mastering.
