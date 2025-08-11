@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><title>Understanding bind Through Promise Implementation</title><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"><link href="https://josephjang.me/feed.xml" rel="alternate" title="josephjang.me posts feed" type="application/rss+xml"><meta content="Joseph Jang&#39;s blog" property="og:site_name"><meta content="Understanding bind Through Promise Implementation" property="og:title"><meta content="website" property="og:type"><meta content="When thinking about the this keyword in JavaScript, the first thing that comes to mind is that its value changes based on how the function is called. Today, we&#39;ll look into how to implement a Promise object from scratch and explore the usage of bind(), a method we don&#39;t use very often in everyday development." property="og:description"><meta content="When thinking about the this keyword in JavaScript, the first thing that comes to mind is that its value changes based on how the function is called. Today, we&#39;ll look into how to implement a Promise object from scratch and explore the usage of bind(), a method we don&#39;t use very often in everyday development." name="description"><meta content="summary" property="twitter:card"><meta content="Understanding bind Through Promise Implementation" property="twitter:title"><meta content="When thinking about the this keyword in JavaScript, the first thing that comes to mind is that its value changes based on how the function is called. Today, we&#39;ll look into how to implement a Promise object from scratch and explore the usage of bind(), a method we don&#39;t use very often in everyday development." property="twitter:description"><meta content="@josephjang" property="twitter:creator"><link as="font" crossorigin="true" href="Mona-Sans.woff2" rel="payload" type="font/woff2"><meta content="#cceac3" media="(prefers-color-scheme: light)" name="theme-color"><link href="/style.css" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script><script src="/highlightjs-gleam.js"></script><script>hljs.highlightAll();</script></head><body><div class="limit-max-width-and-center"><article class="post h-entry "><header><h1 class="post-title p-name ">Understanding bind Through Promise Implementation</h1><nav class="breadcrumbs"><a class="breadcrumb-link" href="/" rel="author">← home</a></nav><div class="post-subtitle"><time class="post-date dt-published " datetime="2024-02-21">21 February 2024</time><ul class="post-tags"><li class="post-tag p-category "><a href="/tags/javascript.html">javascript</a></li></ul></div></header><main class="post-body e-content "><p>When thinking about the this keyword in JavaScript, the first thing that comes to mind is that its value changes based on how the function is called. Today, we&#39;ll look into how to implement a Promise object from scratch and explore the usage of bind(), a method we don&#39;t use very often in everyday development.</p><div class="post-heading h2-title"><a class="clip" href="#what-is-bind?" id="what-is-bind?">🔗</a><h2>What is bind?</h2></div><p>First, let&#39;s understand the bind method. The bind method allows you to set the this value for a function. In JavaScript, the value of this is dynamically determined based on how a function is called. This can lead to unexpected behavior if this isn&#39;t what you expected. The bind method helps solve this issue.</p><pre><code class="not-prose language-jsx" data-lang="jsx">Function.prototype.vbind = function (newThis) {
+  // If the target is not a function, throw an error
+  if (typeof this !== &#39;function&#39;) {
+    throw new Error(&quot;Cannot bind - target is not callable&quot;);
+  }
+  let boundTargetFunction = this;
+  let boundArguments = Array.prototype.slice.call(arguments, 1);
+  // Return a new function that calls the original function with the new this value
+  return function boundFunction() {
+    let targetArguments = Array.prototype.slice.call(arguments);
+    return boundTargetFunction.apply(newThis, boundArguments.concat(targetArguments));
+  };
+};
+</code></pre><p>This code is a simple implementation of the bind method. By adding the vbind method to Function.prototype, we can use it with any function. This method takes a new this value as its first argument, followed by any arguments that should be passed to the bound function. Internally, it uses the apply method to call the original function with the new this value and arguments.</p><blockquote><p>💡 boundFunction is a great example of a closure. A closure is a function that &quot;remembers&quot; the environment in which it was created, allowing it to access variables from its enclosing scope.</p></blockquote><p>Here, boundFunction remembers boundTargetFunction, newThis, and boundArguments from the context in which it was created, allowing it to execute boundTargetFunction with the specified newThis context later.</p><div class="post-heading h2-title"><a class="clip" href="#combining-promise-and-bind" id="combining-promise-and-bind">🔗</a><h2>Combining Promise and bind</h2></div><p>With an understanding of the bind method, let&#39;s create a simple Promise-like object called VPromise. A Promise represents the eventual completion (or failure) of an asynchronous operation.</p><pre><code class="not-prose language-jsx" data-lang="jsx">class VPromise {
+  constructor(executionFunction) {
+    this.promiseChain = [];
+    this.handleError = () =&gt; {};
+
+    this.onResolve = this.onResolve.vbind(this);
+    this.onReject = this.onReject.vbind(this);
+
+    executionFunction(this.onResolve, this.onReject);
+  }
+
+  then(handler) {
+    this.promiseChain.push(handler);
+    return this; // For chaining
+  }
+
+  error(handler) {
+    this.handleError = handler;
+    return this; // For error handling chain
+  }
+
+  onResolve(value) {
+    let storedValue = value;
+    try {
+      this.promiseChain.forEach((nextFunction) =&gt; {
+        storedValue = nextFunction(storedValue);
+      });
+    } catch (error) {
+      this.onReject(error);
+    }
+  }
+
+  onReject(error) {
+    this.handleError(error);
+  }
+}
+</code></pre><div class="post-heading h2-title"><a class="clip" href="#using-vpromise" id="using-vpromise">🔗</a><h2>Using VPromise</h2></div><pre><code class="not-prose language-jsx" data-lang="jsx">function delayThenValue() {
+  return new VPromise((resolve, reject) =&gt; {
+    setTimeout(() =&gt; {
+      if (true) {
+        resolve(&#39;Asynchronous result&#39;);
+      } else {
+        reject(&#39;Error occurred&#39;);
+      }
+    }, 2000);
+  });
+}
+
+delayThenValue()
+  .then((value) =&gt; {
+    console.log(value); // Asynchronous result
+  })
+  .error((error) =&gt; {
+    console.log(error); // Error occurred
+  });
+</code></pre><p>Similar to JavaScript&#39;s native Promise object, the VPromise class performs asynchronous operations and calls the appropriate handler (onResolve or onReject) based on the result. The key here is using vbind to permanently bind the this context of the onResolve and onReject methods to the current instance.</p><p>Without using bind, if these methods were called asynchronously, this could be set to an unexpected value, preventing access to instance properties like promiseChain or handleError. This reinforces the understanding that:</p><p>“this in JavaScript is dynamically determined based on how the function is called.”</p><div class="post-heading h2-title"><a class="clip" href="#the-role-of-bind" id="the-role-of-bind">🔗</a><h2>The Role of bind</h2></div><p>In VPromise, the onResolve method isn&#39;t called as a method of the instance, but rather as a standalone function. This happens when the executionFunction (which performs the asynchronous operation) calls resolve. If bind is not used, this within onResolve would refer to the global object (or be undefined in strict mode), causing issues with accessing this.promiseChain.</p><p>Using vbind ensures that this is correctly bound to the instance, making the asynchronous behavior predictable and ensuring that the onResolve and onReject methods function as intended, even when called asynchronously.</p><p>Understanding this and the bind method is crucial in JavaScript, especially when dealing with asynchronous code.</p><hr><p><strong>References:</strong></p><ul><li><p><a href="https://levelup.gitconnected.com/understand-javascript-promises-by-building-a-promise-from-scratch-84c0fd855720"><strong>JavaScript</strong>: <em>Learn JavaScript Promises by Building a Promise from Scratch</em></a></p></li><li><p><a href="https://www.mauriciopoppe.com/notes/computer-science/computation/promises/"><strong>JavaScript</strong>: <em>Implementing promises from scratch (TDD way)</em></a></p></li><li><p><a href="https://blog.usejournal.com/implement-your-own-call-apply-and-bind-method-in-javascript-42cc85dba1b"><strong>JavaScript</strong>: <em>Implement your own — call(), apply() and bind() method in JavaScript</em></a></p></li></ul></main></article></div></body></html>
