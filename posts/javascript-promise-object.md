@@ -1,86 +1,92 @@
 ---
 id = "javascript-promise-object"
 title = "Understanding bind Through Promise Implementation"
-abstract = "When thinking about the this keyword in JavaScript, the first thing that comes to mind is that its value changes based on how the function is called. Today, we'll look into how to implement a Promise object from scratch and explore the usage of bind(), a method we don't use very often in everyday development."
+abstract = "Ever had JavaScript's `this` point to something unexpected? Let's build a Promise from scratch to see how `bind()` keeps `this` predictable in asynchronous code."
 tags = ["javascript"]
 date = 2024-02-21
 status = "show"
 ---
 
+Picture this: you're deep in JavaScript code, everything's working perfectly, and then `this` decides to point to something completely unexpected. Your carefully crafted object method suddenly thinks `this` is the global window object, and your code stops working.
 
-When thinking about the this keyword in JavaScript, the first thing that comes to mind is that its value changes based on how the function is called. Today, we'll look into how to implement a Promise object from scratch and explore the usage of bind(), a method we don't use very often in everyday development.
+If you've been there (and let's be honest, who hasn't?), you've probably wondered why JavaScript works this way. Today, we're going to dive into this chaos by building a Promise from scratch and discovering how `bind()` can be our lifeline when `this` goes rogue.
 
-## What is bind?
+## The bind Lifeline
 
-First, let's understand the bind method. The bind method allows you to set the this value for a function. In JavaScript, the value of this is dynamically determined based on how a function is called. This can lead to unexpected behavior if this isn't what you expected. The bind method helps solve this issue.
+JavaScript's `bind()` method fixes the `this` problem by locking in what `this` should be, regardless of how the function gets called later. Think of it like putting a name tag on a function—no matter where that function ends up, it remembers who it belongs to.
+
+The party analogy works here: instead of spending all night correcting people who call you by the wrong name, you just wear a name tag. `bind()` is that name tag for functions.
+
+Let's build our own version to see what's really happening under the hood:
 
 ```jsx
 Function.prototype.vbind = function (newThis) {
-  // If the target is not a function, throw an error
+  // First, a sanity check - we can't bind something that isn't a function
   if (typeof this !== 'function') {
     throw new Error("Cannot bind - target is not callable");
   }
-  let boundTargetFunction = this;
-  let boundArguments = Array.prototype.slice.call(arguments, 1);
-  // Return a new function that calls the original function with the new this value
+  
+  let boundTargetFunction = this; // Remember the original function
+  let boundArguments = Array.prototype.slice.call(arguments, 1); // Grab any extra arguments
+  
+  // Here's the magic - return a new function that "remembers" everything
   return function boundFunction() {
     let targetArguments = Array.prototype.slice.call(arguments);
     return boundTargetFunction.apply(newThis, boundArguments.concat(targetArguments));
   };
 };
-
 ```
 
-This code is a simple implementation of the bind method. By adding the vbind method to Function.prototype, we can use it with any function. This method takes a new this value as its first argument, followed by any arguments that should be passed to the bound function. Internally, it uses the apply method to call the original function with the new this value and arguments.
+The interesting part is that we're returning a new function that "remembers" the original function and the `this` value we want. When this bound function gets called, it uses `apply()` to run the original function with our chosen context.
 
 
->💡 boundFunction is a great example of a closure. A closure is a function that "remembers" the environment in which it was created, allowing it to access variables from its enclosing scope. 
-
-Here, boundFunction remembers boundTargetFunction, newThis, and boundArguments from the context in which it was created, allowing it to execute boundTargetFunction with the specified newThis context later.
+>💡 `boundFunction` is a closure—it remembers the variables from when it was created, even after `vbind` finishes. This is why it can still access `boundTargetFunction`, `newThis`, and `boundArguments` later.
 
 
-## Combining Promise and bind
+## Building Our Own Promise
 
-With an understanding of the bind method, let's create a simple Promise-like object called VPromise. A Promise represents the eventual completion (or failure) of an asynchronous operation.
+Building a Promise from scratch reveals why `bind` matters so much in asynchronous code. Promises need to call methods on their instance from within callback functions, which is exactly when `this` starts pointing to unexpected places.
 
 ```jsx
 class VPromise {
   constructor(executionFunction) {
-    this.promiseChain = [];
-    this.handleError = () => {};
+    this.promiseChain = []; // All the .then() handlers waiting in line
+    this.handleError = () => {}; // Our error handler (starts as a no-op)
 
+    // Here's the crucial part - bind these methods to THIS instance
     this.onResolve = this.onResolve.vbind(this);
     this.onReject = this.onReject.vbind(this);
 
+    // Execute immediately, passing our bound methods as resolve/reject
     executionFunction(this.onResolve, this.onReject);
   }
 
   then(handler) {
-    this.promiseChain.push(handler);
-    return this; // For chaining
+    this.promiseChain.push(handler); // Add to the queue
+    return this; // Return ourselves for chaining
   }
 
   error(handler) {
-    this.handleError = handler;
-    return this; // For error handling chain
+    this.handleError = handler; // Set our error handler
+    return this; // Chainable goodness
   }
 
   onResolve(value) {
     let storedValue = value;
     try {
+      // Run through all the .then() handlers in sequence
       this.promiseChain.forEach((nextFunction) => {
         storedValue = nextFunction(storedValue);
       });
     } catch (error) {
-      this.onReject(error);
+      this.onReject(error); // If anything breaks, handle the error
     }
   }
 
   onReject(error) {
-    this.handleError(error);
+    this.handleError(error); // Pass the error to our handler
   }
 }
-
 ```
 
 ## Using VPromise
@@ -100,27 +106,28 @@ function delayThenValue() {
 
 delayThenValue()
   .then((value) => {
-    console.log(value); // Asynchronous result
+    console.log(value); // "Asynchronous result" after 2 seconds
   })
   .error((error) => {
-    console.log(error); // Error occurred
+    console.log(error); // Won't happen in this example
   });
-
 ```
 
-Similar to JavaScript's native Promise object, the VPromise class performs asynchronous operations and calls the appropriate handler (onResolve or onReject) based on the result. The key here is using vbind to permanently bind the this context of the onResolve and onReject methods to the current instance.
+The `vbind` calls in the constructor are what make this work. Without them, the `onResolve` and `onReject` methods would lose their connection to the Promise instance when called asynchronously.
 
-Without using bind, if these methods were called asynchronously, this could be set to an unexpected value, preventing access to instance properties like promiseChain or handleError. This reinforces the understanding that:
+## Why bind Saves the Day
 
-“this in JavaScript is dynamically determined based on how the function is called.”
+Here's what would happen without those `vbind` calls: when `setTimeout` eventually calls our resolve function, it wouldn't be called as a method of our `VPromise` instance. Instead, it would be called as a standalone function, meaning `this` would probably point to the global object (or be `undefined` in strict mode).
 
-## The Role of bind
+Our carefully crafted `onResolve` method would suddenly have no idea what `this.promiseChain` or `this.handleError` are supposed to be. The whole thing would break with a cascade of undefined errors.
 
-In VPromise, the onResolve method isn't called as a method of the instance, but rather as a standalone function. This happens when the executionFunction (which performs the asynchronous operation) calls resolve. If bind is not used, this within onResolve would refer to the global object (or be undefined in strict mode), causing issues with accessing this.promiseChain.
+With `bind`, the methods stay connected to their original instance no matter how they're called.
 
-Using vbind ensures that this is correctly bound to the instance, making the asynchronous behavior predictable and ensuring that the onResolve and onReject methods function as intended, even when called asynchronously.
+## The Bigger Picture
 
-Understanding this and the bind method is crucial in JavaScript, especially when dealing with asynchronous code.
+JavaScript gives you flexibility with `this`, but that flexibility means you need to be explicit about what you want. `bind` is how you tell JavaScript to stop being clever and just stick to what you specified.
+
+It's one of those methods that seems pointless until you actually need it. Then you realize how much cleaner your asynchronous code becomes when you don't have to worry about `this` wandering off.
 
 ---
 
