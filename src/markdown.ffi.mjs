@@ -13,7 +13,7 @@ export function parse(markdown) {
     function to_lustre_element(node) {
       switch (node.type) {
         case "code":
-          return Markdown.code(node.value, node.lang);
+          return Markdown.code(node.value, node.lang || "");
         case "emphasis":
           return Markdown.emphasis(
             fold_into_list(node.children, to_lustre_element),

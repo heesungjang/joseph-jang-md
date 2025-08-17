@@ -36,10 +36,10 @@ pub fn main() {
   |> ssg.build
 }
 
-fn read_post(named name: String) -> Post {
-  let assert Ok(post) = post.read(from: posts_dir <> "/" <> name)
-  post
-}
+// fn read_post(named name: String) -> Post {
+//   let assert Ok(post) = post.read(from: posts_dir <> "/" <> name)
+//   post
+// }
 
 fn read_posts() -> List(Post) {
   let assert Ok(paths) = simplifile.read_directory(posts_dir)

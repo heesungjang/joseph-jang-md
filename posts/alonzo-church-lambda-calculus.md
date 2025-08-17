@@ -101,5 +101,7 @@ Lambda calculus proves that computation can be reduced to simple function applic
 
 ---
 
+**References:**
+
 - [Lambda Calculus - Stanford Encyclopedia of Philosophy](https://plato.stanford.edu/entries/lambda-calculus/)
 - [Alonzo Church - Wikipedia](https://en.wikipedia.org/wiki/Alonzo_Church)
