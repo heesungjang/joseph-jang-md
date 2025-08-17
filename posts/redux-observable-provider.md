@@ -7,7 +7,7 @@ date = 2024-02-23
 status = "show"
 ---
 
-Redux has been around long enough that you've probably used it, cursed at it, or at least heard coworkers complain about its boilerplate. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.
+Redux has been around long enough that you've probably used it, or at least heard coworkers complain about its boilerplate. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.
 
 The interesting thing about Redux isn't the action creators or reducers—it's the patterns underneath. Redux is built on two foundational patterns: Observable and Provider. Understanding these patterns explains not just how Redux works, but why it works the way it does.
 
@@ -39,7 +39,7 @@ function createObservable() {
   // Function to notify all observers of a state change
   function notify(value) {
     if (observers.length === 0) {
-      console.log('---- Sorry, no more subscriptions ----');
+      console.log("---- Sorry, no more subscriptions ----");
       return;
     }
 
@@ -54,24 +54,22 @@ function createObservable() {
     notify,
   };
 }
-
 ```
 
 The `subscribe` function returns an unsubscribe function that remembers which observer to remove later. This is handy when you're using anonymous functions—otherwise you'd need to store a reference to unsubscribe.
-
 
 ```jsx
 const observable = createObservable();
 
 const unsubscribe = observable.subscribe((value) => {
-  console.log('Received value from observer: ', value);
+  console.log("Received value from observer: ", value);
 });
 
-observable.notify('Tada!!'); // Output: Received value from observer: Tada!!
+observable.notify("Tada!!"); // Output: Received value from observer: Tada!!
 
 unsubscribe();
 
-observable.notify('Tada!!'); // No output
+observable.notify("Tada!!"); // No output
 ```
 
 The first `notify` call reaches the observer and logs the message. After unsubscribing, the second call goes nowhere.
@@ -123,7 +121,6 @@ function createStore(reducer, initialState) {
     unSubscribe, // Unsubscribe from state changes
   };
 }
-
 ```
 
 The key difference from our basic Observable is the `dispatch` method—it runs the action through a reducer to get the new state, then notifies all listeners. Everything else works the same way.
@@ -136,9 +133,9 @@ Here's how you'd use our Redux implementation in a React component:
 const store = createStore((state = 0, action) => {
   const { type, payload } = action;
   switch (type) {
-    case 'INCREMENT':
+    case "INCREMENT":
       return state + payload;
-    case 'DECREMENT':
+    case "DECREMENT":
       return state - payload;
     default:
       return state;
@@ -154,7 +151,7 @@ function App() {
 
   // onClick function: Called when the button is clicked. Dispatches an 'INCREMENT' action to increase the count.
   const onClick = () => {
-    store.dispatch({ type: 'INCREMENT', payload: 1 });
+    store.dispatch({ type: "INCREMENT", payload: 1 });
   };
 
   // useEffect hook to subscribe to the store when the component mounts.
@@ -172,13 +169,13 @@ function App() {
     <div className="App">
       <h1>COUNTER</h1>
       <span>{count}</span> {/* Display the current count */}
-      <div style={{ marginTop: '10px' }}>
-        <button onClick={onClick}>+</button> {/* Button to increment the count */}
+      <div style={{ marginTop: "10px" }}>
+        <button onClick={onClick}>+</button>{" "}
+        {/* Button to increment the count */}
       </div>
     </div>
   );
 }
-
 ```
 
 The component subscribes to the store on mount and updates its local state whenever the store changes. It's a bit manual, but it works.
@@ -190,12 +187,12 @@ The manual Redux approach works but gets tedious quickly. You have to subscribe 
 The Provider pattern uses React's Context API to make the Redux store available to any component in the tree without manually passing it down. Here's the basic idea:
 
 ```jsx
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext } from "react";
 
 const MessageContext = createContext();
 
 export function MessageProvider({ children }) {
-  const message = 'Hello from Context!';
+  const message = "Hello from Context!";
   return (
     <MessageContext.Provider value={message}>
       {children}
@@ -227,7 +224,7 @@ export function StoreProvider({ store, children }) {
 function useStore() {
   const context = useContext(StoreContext);
   if (!context) {
-    throw new Error('useStore must be used within a StoreProvider');
+    throw new Error("useStore must be used within a StoreProvider");
   }
   return context;
 }
@@ -265,7 +262,7 @@ function Counter() {
   const count = useSelector((state) => state);
 
   const onClick = () => {
-    dispatch({ type: 'INCREMENT', payload: 1 });
+    dispatch({ type: "INCREMENT", payload: 1 });
   };
 
   return (
