@@ -7,7 +7,7 @@ date = 2024-02-23
 status = "show"
 ---
 
-Redux has been around long enough that you've probably used it, or at least heard coworkers complain about its boilerplate. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.
+Redux has been around long enough that you've probably used it. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.
 
 The interesting thing about Redux isn't the action creators or reducers—it's the patterns underneath. Redux is built on two foundational patterns: Observable and Provider. Understanding these patterns explains not just how Redux works, but why it works the way it does.
 
