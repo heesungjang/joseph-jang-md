@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><title>Observable &amp; Provider Patterns in Redux</title><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"><link href="https://josephjang.me/feed.xml" rel="alternate" title="josephjang.me posts feed" type="application/rss+xml"><meta content="Joseph Jang&#39;s blog" property="og:site_name"><meta content="Observable &amp; Provider Patterns in Redux" property="og:title"><meta content="website" property="og:type"><meta content="Redux still powers many production apps despite newer alternatives. Building Redux from scratch reveals how Observable and Provider patterns work together to manage state." property="og:description"><meta content="Redux still powers many production apps despite newer alternatives. Building Redux from scratch reveals how Observable and Provider patterns work together to manage state." name="description"><meta content="summary" property="twitter:card"><meta content="Observable &amp; Provider Patterns in Redux" property="twitter:title"><meta content="Redux still powers many production apps despite newer alternatives. Building Redux from scratch reveals how Observable and Provider patterns work together to manage state." property="twitter:description"><meta content="@josephjang" property="twitter:creator"><link as="font" crossorigin="true" href="Mona-Sans.woff2" rel="payload" type="font/woff2"><meta content="#cceac3" media="(prefers-color-scheme: light)" name="theme-color"><link href="/style.css" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script><script src="/highlightjs-gleam.js"></script><script>hljs.highlightAll();</script></head><body><div class="limit-max-width-and-center"><article class="post h-entry "><header><h1 class="post-title p-name ">Observable &amp; Provider Patterns in Redux</h1><nav class="breadcrumbs"><a class="breadcrumb-link" href="/" rel="author">← home</a></nav><div class="post-subtitle"><time class="post-date dt-published " datetime="2024-02-23">23 February 2024</time><ul class="post-tags"><li class="post-tag p-category "><a href="/tags/javascript.html">javascript</a></li><li class="post-tag p-category "><a href="/tags/react.html">react</a></li></ul></div></header><main class="post-body e-content "><p>Redux has been around long enough that you&#39;ve probably used it, cursed at it, or at least heard coworkers complain about its boilerplate. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.</p><p>The interesting thing about Redux isn&#39;t the action creators or reducers—it&#39;s the patterns underneath. Redux is built on two foundational patterns: Observable and Provider. Understanding these patterns explains not just how Redux works, but why it works the way it does.</p><div class="post-heading h2-title"><a class="clip" href="#the-observable-pattern" id="the-observable-pattern">🔗</a><h2>The Observable Pattern</h2></div><p>The Observable pattern is about watching for changes and letting interested parties know when something happens. Think of it like hosting a watch party—you notify everyone when the next episode starts.</p><p>Here&#39;s how you might implement one:</p><pre><code class="not-prose language-jsx" data-lang="jsx">function createObservable() {
+<html lang="en"><head><title>Observable &amp; Provider Patterns in Redux</title><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"><link href="https://josephjang.me/feed.xml" rel="alternate" title="josephjang.me posts feed" type="application/rss+xml"><meta content="Joseph Jang&#39;s blog" property="og:site_name"><meta content="Observable &amp; Provider Patterns in Redux" property="og:title"><meta content="website" property="og:type"><meta content="Redux still powers many production apps despite newer alternatives. Building Redux from scratch reveals how Observable and Provider patterns work together to manage state." property="og:description"><meta content="Redux still powers many production apps despite newer alternatives. Building Redux from scratch reveals how Observable and Provider patterns work together to manage state." name="description"><meta content="summary" property="twitter:card"><meta content="Observable &amp; Provider Patterns in Redux" property="twitter:title"><meta content="Redux still powers many production apps despite newer alternatives. Building Redux from scratch reveals how Observable and Provider patterns work together to manage state." property="twitter:description"><meta content="@josephjang" property="twitter:creator"><link as="font" crossorigin="true" href="Mona-Sans.woff2" rel="payload" type="font/woff2"><meta content="#cceac3" media="(prefers-color-scheme: light)" name="theme-color"><link href="/style.css" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script><script src="/highlightjs-gleam.js"></script><script>hljs.highlightAll();</script></head><body><div class="limit-max-width-and-center"><article class="post h-entry "><header><h1 class="post-title p-name ">Observable &amp; Provider Patterns in Redux</h1><nav class="breadcrumbs"><a class="breadcrumb-link" href="/" rel="author">← home</a></nav><div class="post-subtitle"><time class="post-date dt-published " datetime="2024-02-23">23 February 2024</time><ul class="post-tags"><li class="post-tag p-category "><a href="/tags/javascript.html">javascript</a></li><li class="post-tag p-category "><a href="/tags/react.html">react</a></li></ul></div></header><main class="post-body e-content "><p>Redux has been around long enough that you&#39;ve probably used it, or at least heard coworkers complain about its boilerplate. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.</p><p>The interesting thing about Redux isn&#39;t the action creators or reducers—it&#39;s the patterns underneath. Redux is built on two foundational patterns: Observable and Provider. Understanding these patterns explains not just how Redux works, but why it works the way it does.</p><div class="post-heading h2-title"><a class="clip" href="#the-observable-pattern" id="the-observable-pattern">🔗</a><h2>The Observable Pattern</h2></div><p>The Observable pattern is about watching for changes and letting interested parties know when something happens. Think of it like hosting a watch party—you notify everyone when the next episode starts.</p><p>Here&#39;s how you might implement one:</p><pre><code class="not-prose language-jsx" data-lang="jsx">function createObservable() {
   let observers = []; // Array to store observers who will monitor state changes
 
   // Function to add an observer
@@ -20,7 +20,7 @@
   // Function to notify all observers of a state change
   function notify(value) {
     if (observers.length === 0) {
-      console.log(&#39;---- Sorry, no more subscriptions ----&#39;);
+      console.log(&quot;---- Sorry, no more subscriptions ----&quot;);
       return;
     }
 
@@ -34,18 +34,17 @@
     unSubscribe,
     notify,
   };
-}
-</code></pre><p>The <code>subscribe</code> function returns an unsubscribe function that remembers which observer to remove later. This is handy when you&#39;re using anonymous functions—otherwise you&#39;d need to store a reference to unsubscribe.</p><pre><code class="not-prose language-jsx" data-lang="jsx">const observable = createObservable();
+}</code></pre><p>The <code>subscribe</code> function returns an unsubscribe function that remembers which observer to remove later. This is handy when you&#39;re using anonymous functions—otherwise you&#39;d need to store a reference to unsubscribe.</p><pre><code class="not-prose language-jsx" data-lang="jsx">const observable = createObservable();
 
 const unsubscribe = observable.subscribe((value) =&gt; {
-  console.log(&#39;Received value from observer: &#39;, value);
+  console.log(&quot;Received value from observer: &quot;, value);
 });
 
-observable.notify(&#39;Tada!!&#39;); // Output: Received value from observer: Tada!!
+observable.notify(&quot;Tada!!&quot;); // Output: Received value from observer: Tada!!
 
 unsubscribe();
 
-observable.notify(&#39;Tada!!&#39;); // No output</code></pre><p>The first <code>notify</code> call reaches the observer and logs the message. After unsubscribing, the second call goes nowhere.</p><p>Going back to the watch party analogy: you&#39;re the host managing who gets updates about new episodes. Friends can join your notification list (subscribe), you tell everyone when episodes are available (notify), and friends can leave the list anytime (unsubscribe). The Observable pattern works the same way—it&#39;s just a more formal way of organizing who gets told about what.</p><div class="post-heading h2-title"><a class="clip" href="#redux-as-an-observable" id="redux-as-an-observable">🔗</a><h2>Redux as an Observable</h2></div><p>Redux is essentially an Observable with some extra features. The store holds state, components subscribe to changes, and when you dispatch an action, all subscribers get notified. Here&#39;s what a minimal Redux implementation looks like:</p><pre><code class="not-prose language-jsx" data-lang="jsx">// createStore function: Takes a reducer and an initial state to create the store
+observable.notify(&quot;Tada!!&quot;); // No output</code></pre><p>The first <code>notify</code> call reaches the observer and logs the message. After unsubscribing, the second call goes nowhere.</p><p>Going back to the watch party analogy: you&#39;re the host managing who gets updates about new episodes. Friends can join your notification list (subscribe), you tell everyone when episodes are available (notify), and friends can leave the list anytime (unsubscribe). The Observable pattern works the same way—it&#39;s just a more formal way of organizing who gets told about what.</p><div class="post-heading h2-title"><a class="clip" href="#redux-as-an-observable" id="redux-as-an-observable">🔗</a><h2>Redux as an Observable</h2></div><p>Redux is essentially an Observable with some extra features. The store holds state, components subscribe to changes, and when you dispatch an action, all subscribers get notified. Here&#39;s what a minimal Redux implementation looks like:</p><pre><code class="not-prose language-jsx" data-lang="jsx">// createStore function: Takes a reducer and an initial state to create the store
 function createStore(reducer, initialState) {
   let state = initialState; // Current state of the store
   let listeners = []; // List of listeners to notify on state change
@@ -84,13 +83,12 @@ function createStore(reducer, initialState) {
     subscribe, // Subscribe to state changes
     unSubscribe, // Unsubscribe from state changes
   };
-}
-</code></pre><p>The key difference from our basic Observable is the <code>dispatch</code> method—it runs the action through a reducer to get the new state, then notifies all listeners. Everything else works the same way.</p><div class="post-heading h2-title"><a class="clip" href="#using-redux-in-react" id="using-redux-in-react">🔗</a><h2>Using Redux in React</h2></div><p>Here&#39;s how you&#39;d use our Redux implementation in a React component:</p><pre><code class="not-prose language-jsx" data-lang="jsx">const store = createStore((state = 0, action) =&gt; {
+}</code></pre><p>The key difference from our basic Observable is the <code>dispatch</code> method—it runs the action through a reducer to get the new state, then notifies all listeners. Everything else works the same way.</p><div class="post-heading h2-title"><a class="clip" href="#using-redux-in-react" id="using-redux-in-react">🔗</a><h2>Using Redux in React</h2></div><p>Here&#39;s how you&#39;d use our Redux implementation in a React component:</p><pre><code class="not-prose language-jsx" data-lang="jsx">const store = createStore((state = 0, action) =&gt; {
   const { type, payload } = action;
   switch (type) {
-    case &#39;INCREMENT&#39;:
+    case &quot;INCREMENT&quot;:
       return state + payload;
-    case &#39;DECREMENT&#39;:
+    case &quot;DECREMENT&quot;:
       return state - payload;
     default:
       return state;
@@ -102,7 +100,7 @@ function App() {
 
   // onClick function: Called when the button is clicked. Dispatches an &#39;INCREMENT&#39; action to increase the count.
   const onClick = () =&gt; {
-    store.dispatch({ type: &#39;INCREMENT&#39;, payload: 1 });
+    store.dispatch({ type: &quot;INCREMENT&quot;, payload: 1 });
   };
 
   // useEffect hook to subscribe to the store when the component mounts.
@@ -120,18 +118,18 @@ function App() {
     &lt;div className=&quot;App&quot;&gt;
       &lt;h1&gt;COUNTER&lt;/h1&gt;
       &lt;span&gt;{count}&lt;/span&gt; {/* Display the current count */}
-      &lt;div style={{ marginTop: &#39;10px&#39; }}&gt;
-        &lt;button onClick={onClick}&gt;+&lt;/button&gt; {/* Button to increment the count */}
+      &lt;div style={{ marginTop: &quot;10px&quot; }}&gt;
+        &lt;button onClick={onClick}&gt;+&lt;/button&gt;{&quot; &quot;}
+        {/* Button to increment the count */}
       &lt;/div&gt;
     &lt;/div&gt;
   );
-}
-</code></pre><p>The component subscribes to the store on mount and updates its local state whenever the store changes. It&#39;s a bit manual, but it works.</p><div class="post-heading h2-title"><a class="clip" href="#the-provider-pattern" id="the-provider-pattern">🔗</a><h2>The Provider Pattern</h2></div><p>The manual Redux approach works but gets tedious quickly. You have to subscribe to the store in every component that needs state, manage subscriptions, and handle cleanup. React-Redux solves this with the Provider pattern.</p><p>The Provider pattern uses React&#39;s Context API to make the Redux store available to any component in the tree without manually passing it down. Here&#39;s the basic idea:</p><pre><code class="not-prose language-jsx" data-lang="jsx">import React, { createContext, useContext } from &#39;react&#39;;
+}</code></pre><p>The component subscribes to the store on mount and updates its local state whenever the store changes. It&#39;s a bit manual, but it works.</p><div class="post-heading h2-title"><a class="clip" href="#the-provider-pattern" id="the-provider-pattern">🔗</a><h2>The Provider Pattern</h2></div><p>The manual Redux approach works but gets tedious quickly. You have to subscribe to the store in every component that needs state, manage subscriptions, and handle cleanup. React-Redux solves this with the Provider pattern.</p><p>The Provider pattern uses React&#39;s Context API to make the Redux store available to any component in the tree without manually passing it down. Here&#39;s the basic idea:</p><pre><code class="not-prose language-jsx" data-lang="jsx">import React, { createContext, useContext } from &quot;react&quot;;
 
 const MessageContext = createContext();
 
 export function MessageProvider({ children }) {
-  const message = &#39;Hello from Context!&#39;;
+  const message = &quot;Hello from Context!&quot;;
   return (
     &lt;MessageContext.Provider value={message}&gt;
       {children}
@@ -153,7 +151,7 @@ export function StoreProvider({ store, children }) {
 function useStore() {
   const context = useContext(StoreContext);
   if (!context) {
-    throw new Error(&#39;useStore must be used within a StoreProvider&#39;);
+    throw new Error(&quot;useStore must be used within a StoreProvider&quot;);
   }
   return context;
 }
@@ -183,7 +181,7 @@ export function useSelector(selector) {
   const count = useSelector((state) =&gt; state);
 
   const onClick = () =&gt; {
-    dispatch({ type: &#39;INCREMENT&#39;, payload: 1 });
+    dispatch({ type: &quot;INCREMENT&quot;, payload: 1 });
   };
 
   return (
