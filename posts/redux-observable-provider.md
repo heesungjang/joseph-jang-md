@@ -9,11 +9,11 @@ status = "show"
 
 Redux has been around long enough that you've probably used it. Despite newer alternatives like React-Query, Jotai, and Recoil, Redux still runs in production apps everywhere.
 
-The interesting thing about Redux isn't the action creators or reducers—it's the patterns underneath. Redux is built on two foundational patterns: Observable and Provider. Understanding these patterns explains not just how Redux works, but why it works the way it does.
+The interesting thing about Redux isn't the action creators or reducers. It's the patterns underneath. Redux is built on two foundational patterns: Observable and Provider. Understanding these patterns explains not just how Redux works, but why it works the way it does.
 
 ## The Observable Pattern
 
-The Observable pattern is about watching for changes and letting interested parties know when something happens. Think of it like hosting a watch party—you notify everyone when the next episode starts.
+The Observable pattern is about watching for changes and letting interested parties know when something happens. Think of it like hosting a watch party: you notify everyone when the next episode starts.
 
 Here's how you might implement one:
 
@@ -56,7 +56,7 @@ function createObservable() {
 }
 ```
 
-The `subscribe` function returns an unsubscribe function that remembers which observer to remove later. This is handy when you're using anonymous functions—otherwise you'd need to store a reference to unsubscribe.
+The `subscribe` function returns an unsubscribe function that remembers which observer to remove later. This is handy when you're using anonymous functions. Otherwise you'd need to store a reference to unsubscribe.
 
 ```jsx
 const observable = createObservable();
@@ -74,7 +74,7 @@ observable.notify("Tada!!"); // No output
 
 The first `notify` call reaches the observer and logs the message. After unsubscribing, the second call goes nowhere.
 
-Going back to the watch party analogy: you're the host managing who gets updates about new episodes. Friends can join your notification list (subscribe), you tell everyone when episodes are available (notify), and friends can leave the list anytime (unsubscribe). The Observable pattern works the same way—it's just a more formal way of organizing who gets told about what.
+Going back to the watch party analogy: you're the host managing who gets updates about new episodes. Friends can join your notification list (subscribe), you tell everyone when episodes are available (notify), and friends can leave the list anytime (unsubscribe). The Observable pattern works the same way. It's just a more formal way of organizing who gets told about what.
 
 ## Redux as an Observable
 
@@ -123,7 +123,7 @@ function createStore(reducer, initialState) {
 }
 ```
 
-The key difference from our basic Observable is the `dispatch` method—it runs the action through a reducer to get the new state, then notifies all listeners. Everything else works the same way.
+The key difference from our basic Observable is the `dispatch` method. It runs the action through a reducer to get the new state, then notifies all listeners. Everything else works the same way.
 
 ## Using Redux in React
 
@@ -252,7 +252,7 @@ export function useSelector(selector) {
 }
 ```
 
-`useSelector` does the subscription management for you—it subscribes to the store, runs your selector function when the store changes, and triggers a re-render if the selected value changed.
+`useSelector` does the subscription management for you. It subscribes to the store, runs your selector function when the store changes, and triggers a re-render if the selected value changed.
 
 Now instead of manually subscribing in every component, you can just use `useSelector` and `useDispatch`:
 
@@ -281,7 +281,7 @@ Much cleaner than the manual subscription approach.
 
 Redux might seem complex with all its action creators, middleware, and boilerplate, but at its core it's just two simple patterns working together. The Observable pattern handles the subscription logic, and the Provider pattern handles getting the store to your components without passing it everywhere.
 
-Understanding these patterns explains why Redux works the way it does, and why it's been so durable despite all the "Redux killers" that have come along. The patterns are solid—they just sometimes get buried under layers of abstraction and tooling.
+Understanding these patterns explains why Redux works the way it does, and why it's been so durable despite all the "Redux killers" that have come along. The patterns are solid. They just sometimes get buried under layers of abstraction and tooling.
 
 ---
 

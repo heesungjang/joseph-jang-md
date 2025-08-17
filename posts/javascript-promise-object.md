@@ -13,7 +13,7 @@ If you've been there (and let's be honest, who hasn't?), you've probably wondere
 
 ## The bind Lifeline
 
-JavaScript's `bind()` method fixes the `this` problem by locking in what `this` should be, regardless of how the function gets called later. Think of it like putting a name tag on a function—no matter where that function ends up, it remembers who it belongs to.
+JavaScript's `bind()` method fixes the `this` problem by locking in what `this` should be, regardless of how the function gets called later. Think of it like putting a name tag on a function. No matter where that function ends up, it remembers who it belongs to.
 
 The party analogy works here: instead of spending all night correcting people who call you by the wrong name, you just wear a name tag. `bind()` is that name tag for functions.
 
@@ -40,7 +40,7 @@ Function.prototype.vbind = function (newThis) {
 The interesting part is that we're returning a new function that "remembers" the original function and the `this` value we want. When this bound function gets called, it uses `apply()` to run the original function with our chosen context.
 
 
->💡 `boundFunction` is a closure—it remembers the variables from when it was created, even after `vbind` finishes. This is why it can still access `boundTargetFunction`, `newThis`, and `boundArguments` later.
+>💡 `boundFunction` is a closure. It remembers the variables from when it was created, even after `vbind` finishes. This is why it can still access `boundTargetFunction`, `newThis`, and `boundArguments` later.
 
 
 ## Building Our Own Promise
