@@ -3,7 +3,7 @@ id = "spfx-oninit-async-await-blocking"
 title = "Why Our SPFx Web Parts Randomly Disappeared (And How We Fixed It)"
 abstract = "Some of our SharePoint web parts were randomly failing to render for certain users. The problem? An async/await call in onInit() that seemed harmless until it wasn't."
 tags = ["sharepoint", "spfx", "javascript"]
-date = 2025-01-18
+date = 2025-08-18
 status = "show"
 ---
 
