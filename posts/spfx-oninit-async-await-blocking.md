@@ -71,19 +71,15 @@ Just another async/await code.. with try-catch. What could go wrong?
 
 Apparently everything. But the tricky part was more subtle than we initially thought.
 
-We had multiple layers of error handling - try-catch in `onInit()` AND try-catch inside our `LicensingService`. This gave us false confidence that everything was "safe." The licensing service would catch any network errors and just return `false` instead of throwing.
+1. We had multiple layers of error handling - try-catch in `onInit()` AND try-catch inside our `LicensingService`. For whatever reason getting user's license from API call fails, due to catch block in the service method, the error never really bubbles up to the oninit() method it never gets to the point where it would resolve or reject. This results in the promise from the oninit method never gets resolved.
 
-But that was exactly our mistake. When a network request hangs indefinitely, it never gets to the point where it would resolve or reject. The licensing service just sits there waiting for a response that never comes. No error is thrown because there's no error - just a promise stuck in "pending" state forever.
-
-So our try-catch blocks never run. Not because they can't catch the error, but because the promise never resolves OR rejects. It's stuck in limbo.
-
-And here's the thing about SPFx - `render()` doesn't get called until `onInit()` completes. I'm not entirely sure but it seems so if `onInit()` takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that `removeChild` error comes from. The framework expected a web part to be there, but `onInit()` never finished, so there's nothing to remove.
+2. I'm not entirely sure but it seems that if `onInit()` takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that `removeChild` error comes from. The framework expected a web part to be there, but `onInit()` never finished, so there's nothing to remove.
 
 ## The SPFx Lifecycle Gotcha
 
 SPFx has this lifecycle where `onInit()` has to complete before anything else happens. When you return a Promise from `onInit()`, the framework waits for it. Makes sense for critical initialization, but it also means any hanging promise will kill your component.
 
-The Discord person's `.then().catch()` approach would work, but we realized we had a different problem. License validation wasn't optional - we actually needed to know if the user was licensed before rendering anything.
+`.then().catch()` approach would work, but we realized we had a different problem. License validation wasn't optional - we actually needed to know if the user was licensed before rendering anything.
 
 ## Moving the Check
 
