@@ -49,13 +49,13 @@ export abstract class OurExtendedClientSideWebPart<
       const version = this.context.manifest.version;
 
       // license check with licensing service
-      this.properties.license = (await LicensingService.HasValidLicense(
+      this.properties.license = await LicensingService.HasValidLicense(
         tenantId,
         userId,
         componentId,
         version,
         this.context
-      )) as ILicense;
+      );
     } catch (error) {
       // do the error handling..
     }
@@ -87,7 +87,7 @@ The Discord person's `.then().catch()` approach would work, but we realized we h
 
 ## Moving the Check
 
-Instead of trying to make the async call non-blocking, we moved the license check out of `onInit()` entirely. We created a wrapper React component that handles licensing at the component level:
+Instead of trying to make the async call non-blocking, we moved the license check out of `onInit()` entirely. Thankfully, we already had wrapper component that wraps all of our webparts for setting a fluent theme, provide redux global states and etc. Licensing check now lives in this component level:
 
 ```typescript
 // Clean onInit - no API calls
@@ -98,7 +98,7 @@ protected async onInit(): Promise<void> {
 
 // Render method now uses the wrapper
 public render(): void {
-  const element = React.createElement(LicenseWrapper, {
+  const element = React.createElement(OurSampleWrapper, {
     context: this.context,
     componentId: this.context.manifest.id
   });
@@ -107,41 +107,47 @@ public render(): void {
 }
 ```
 
-The `LicenseWrapper` component handles the async license check after the web part has already rendered:
+The `OurSampleWrapper` component handles the async license check after the web part has already rendered:
 
 ```typescript
-const LicenseWrapper: React.FC<Props> = ({
-  context,
-  componentId,
-  children,
-}) => {
+const OurSampleWrapper: React.FC<Props> = (props) => {
   const [license, setLicense] = useState<ILicense | null>(null);
+
+  // other stuff...
 
   useEffect(() => {
     const checkLicense = async () => {
       try {
         const licenseService = new LicenseService();
         const licenseResult = (await licenseService.validateLicense({
-          tenantId: context.pageContext.aadInfo.tenantId,
-          componentId,
-        })) as ILicense;
+          tenantId: props.context.pageContext.aadInfo.tenantId,
+          componentId: props.componentId,
+          //and other tenant infos
+        }))
         setLicense(licenseResult);
       } catch (error) {
-        console.warn("License check failed:", error);
-        setLicense({ expired: true } as ILicense);
+
+
       }
     };
 
     checkLicense();
   }, [context, componentId]);
 
+
   //  some more logics like loading skeleton and etc.
 
   if (license.expired) {
-    return <TrialCard />;
+    return <Unlicensed />;
   }
 
-  return <>{children}</>;
+  return (<Provider1>
+            <Provider2>
+                <Provider3>
+                    {children}
+                <Provider3/>
+            <Provider2/>
+          <Provider1/>);
 };
 ```
 
