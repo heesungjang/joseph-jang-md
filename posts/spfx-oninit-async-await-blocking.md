@@ -71,9 +71,9 @@ Just another async/await code.. with try-catch. What could go wrong?
 
 Apparently everything. But the tricky part was more subtle than we initially thought.
 
-1. We had multiple layers of error handling - try-catch in `onInit()` AND try-catch inside our `LicensingService`. For whatever reason getting user's license from API call fails, due to catch block in the service method, the error never really bubbles up to the oninit() method it never gets to the point where it would resolve or reject. This results in the promise from the oninit method never gets resolved.
+We had multiple layers of error handling - try-catch in `onInit()` AND try-catch inside our `LicensingService`. For whatever reason getting user's license from API call fails, due to catch block in the service method, the error never really bubbles up to the oninit() method it never gets to the point where it would resolve or reject. This results in the promise from the oninit method never gets resolved.
 
-2. I'm not entirely sure but it seems that if `onInit()` takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that `removeChild` error comes from. The framework expected a web part to be there, but `onInit()` never finished, so there's nothing to remove.
+I'm not entirely sure but it seems that if `onInit()` takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that `removeChild` error comes from. The framework expected a web part to be there, but `onInit()` never finished, so there's nothing to remove.
 
 ## The SPFx Lifecycle Gotcha
 
