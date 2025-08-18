@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.voitanos.io)",
+      "WebFetch(domain:blog.aterentiev.com)",
+      "WebFetch(domain:sharepoint.stackexchange.com)",
+      "WebFetch(domain:sharepoint.stackexchange.com)",
+      "WebFetch(domain:gajus.medium.com)",
+      "WebFetch(domain:javascript.info)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
