@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><title>Why Our SPFx Web Parts Randomly Disappeared (And How We Fixed It)</title><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"><link href="https://josephjang.me/feed.xml" rel="alternate" title="josephjang.me posts feed" type="application/rss+xml"><meta content="Joseph Jang&#39;s blog" property="og:site_name"><meta content="Why Our SPFx Web Parts Randomly Disappeared (And How We Fixed It)" property="og:title"><meta content="website" property="og:type"><meta content="Some of our SharePoint web parts were randomly failing to render for certain users. The problem? An async/await call in onInit() that seemed harmless until it wasn&#39;t." property="og:description"><meta content="Some of our SharePoint web parts were randomly failing to render for certain users. The problem? An async/await call in onInit() that seemed harmless until it wasn&#39;t." name="description"><meta content="summary" property="twitter:card"><meta content="Why Our SPFx Web Parts Randomly Disappeared (And How We Fixed It)" property="twitter:title"><meta content="Some of our SharePoint web parts were randomly failing to render for certain users. The problem? An async/await call in onInit() that seemed harmless until it wasn&#39;t." property="twitter:description"><meta content="@josephjang" property="twitter:creator"><link as="font" crossorigin="true" href="Mona-Sans.woff2" rel="payload" type="font/woff2"><meta content="#cceac3" media="(prefers-color-scheme: light)" name="theme-color"><link href="/style.css" rel="stylesheet"><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script><script src="/highlightjs-gleam.js"></script><script>hljs.highlightAll();</script></head><body><div class="limit-max-width-and-center"><article class="post h-entry "><header><h1 class="post-title p-name ">Why Our SPFx Web Parts Randomly Disappeared (And How We Fixed It)</h1><nav class="breadcrumbs"><a class="breadcrumb-link" href="/" rel="author">← home</a></nav><div class="post-subtitle"><time class="post-date dt-published " datetime="2025-01-18">18 January 2025</time><ul class="post-tags"><li class="post-tag p-category "><a href="/tags/javascript.html">javascript</a></li><li class="post-tag p-category "><a href="/tags/sharepoint.html">sharepoint</a></li><li class="post-tag p-category "><a href="/tags/spfx.html">spfx</a></li></ul></div></header><main class="post-body e-content "><p>We had this weird bug. Some users reported that our SharePoint web parts just wouldn&#39;t show up on their pages. Not all the time, not for everyone, just... randomly. The DOM would be empty where the component should be.</p><p>Sometimes there was a console error: <code>Failed to execute &#39;removeChild&#39; on &#39;Node&#39;</code> but it didn&#39;t make much sense. What was trying to remove what child? The web part wasn&#39;t even rendering.</p><p>Couldn&#39;t reproduce it locally. Took us months to figure out what was happening.</p><p>It might seem like an obvious silly mistake, but hopefully this helps somebody... because it took us way too long to figure out.</p><div class="post-heading h2-title"><a class="clip" href="#finding-the-clue" id="finding-the-clue">🔗</a><h2>Finding the Clue</h2></div><p>I was scrolling through a SharePoint developer Discord when someone shared this exact problem. They had a web part with a &quot;phone home&quot; feature that tracked usage by pinging their API from the <code>onInit()</code> method. Their solution caught my attention:</p><blockquote><p>&quot;Unfortunately, if the API service receiving these requests was down, the request would not complete or would take too long to complete, resulting in the onInit() method not returning and, subsequently, the web part not rendering.</p><p>We fixed this by switching to the pattern fetch(&#39;https://....&#39;).then(...).catch(...) to ensure the PhoneHome component returns immediately, allowing onInit() to finish execution and the web part to render.&quot;</p></blockquote><p>That&#39;s when it clicked. We had the same pattern, just with a different API call.</p><div class="post-heading h2-title"><a class="clip" href="#our-license-check-problem" id="our-license-check-problem">🔗</a><h2>Our License Check Problem</h2></div><p>Our web parts checked licenses during initialization. Made sense - why render a component the user isn&#39;t licensed to use? The code looked something like this (simplified version):</p><pre><code class="not-prose language-typescript" data-lang="typescript">export interface ILicense {
+  expired: boolean;
+  plan: Plan;
+  renewalDate?: string;
+  message?: string;
+  status?: StatusType;
+}
+
+export abstract class OurExtendedClientSideWebPart&lt;
+  T extends IWebPartProps
+&gt; extends BaseClientSideWebPart&lt;T&gt; {
+  protected async onInit(): Promise&lt;void&gt; {
+    try {
+      const tenantId = this.context.pageContext.aadInfo.tenantId.toString();
+      const userId = this.context.pageContext.aadInfo.userId.toString();
+      const componentId = this.context.manifest.id;
+      const version = this.context.manifest.version;
+
+      // license check with licensing service
+      this.properties.license = (await LicensingService.HasValidLicense(
+        tenantId,
+        userId,
+        componentId,
+        version,
+        this.context
+      )) as ILicense;
+    } catch (error) {
+      // do the error handling..
+    }
+
+    return Promise.resolve();
+  }
+}</code></pre><p>Just another async/await code.. with try-catch. What could go wrong?</p><div class="post-heading h2-title"><a class="clip" href="#the-promise-limbo" id="the-promise-limbo">🔗</a><h2>The Promise Limbo</h2></div><p>Apparently everything. But the tricky part was more subtle than we initially thought.</p><p>We had multiple layers of error handling - try-catch in <code>onInit()</code> AND try-catch inside our <code>LicensingService</code>. This gave us false confidence that everything was &quot;safe.&quot; The licensing service would catch any network errors and just return <code>false</code> instead of throwing.</p><p>But that was exactly our mistake. When a network request hangs indefinitely, it never gets to the point where it would resolve or reject. The licensing service just sits there waiting for a response that never comes. No error is thrown because there&#39;s no error - just a promise stuck in &quot;pending&quot; state forever.</p><p>So our try-catch blocks never run. Not because they can&#39;t catch the error, but because the promise never resolves OR rejects. It&#39;s stuck in limbo.</p><p>And here&#39;s the thing about SPFx - <code>render()</code> doesn&#39;t get called until <code>onInit()</code> completes. I&#39;m not entirely sure but it seems so if <code>onInit()</code> takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that <code>removeChild</code> error comes from. The framework expected a web part to be there, but <code>onInit()</code> never finished, so there&#39;s nothing to remove.</p><div class="post-heading h2-title"><a class="clip" href="#the-spfx-lifecycle-gotcha" id="the-spfx-lifecycle-gotcha">🔗</a><h2>The SPFx Lifecycle Gotcha</h2></div><p>SPFx has this lifecycle where <code>onInit()</code> has to complete before anything else happens. When you return a Promise from <code>onInit()</code>, the framework waits for it. Makes sense for critical initialization, but it also means any hanging promise will kill your component.</p><p>The Discord person&#39;s <code>.then().catch()</code> approach would work, but we realized we had a different problem. License validation wasn&#39;t optional - we actually needed to know if the user was licensed before rendering anything.</p><div class="post-heading h2-title"><a class="clip" href="#moving-the-check" id="moving-the-check">🔗</a><h2>Moving the Check</h2></div><p>Instead of trying to make the async call non-blocking, we moved the license check out of <code>onInit()</code> entirely. We created a wrapper React component that handles licensing at the component level:</p><pre><code class="not-prose language-typescript" data-lang="typescript">// Clean onInit - no API calls
+protected async onInit(): Promise&lt;void&gt; {
+  // other simple setups for the webpart like pnp and etc.
+  return Promise.resolve();
+}
+
+// Render method now uses the wrapper
+public render(): void {
+  const element = React.createElement(LicenseWrapper, {
+    context: this.context,
+    componentId: this.context.manifest.id
+  });
+
+  ReactDom.render(element, this.domElement);
+}</code></pre><p>The <code>LicenseWrapper</code> component handles the async license check after the web part has already rendered:</p><pre><code class="not-prose language-typescript" data-lang="typescript">const LicenseWrapper: React.FC&lt;Props&gt; = ({
+  context,
+  componentId,
+  children,
+}) =&gt; {
+  const [license, setLicense] = useState&lt;ILicense | null&gt;(null);
+
+  useEffect(() =&gt; {
+    const checkLicense = async () =&gt; {
+      try {
+        const licenseService = new LicenseService();
+        const licenseResult = (await licenseService.validateLicense({
+          tenantId: context.pageContext.aadInfo.tenantId,
+          componentId,
+        })) as ILicense;
+        setLicense(licenseResult);
+      } catch (error) {
+        console.warn(&quot;License check failed:&quot;, error);
+        setLicense({ expired: true } as ILicense);
+      }
+    };
+
+    checkLicense();
+  }, [context, componentId]);
+
+  //  some more logics like loading skeleton and etc.
+
+  if (license.expired) {
+    return &lt;TrialCard /&gt;;
+  }
+
+  return &lt;&gt;{children}&lt;/&gt;;
+};</code></pre><div class="post-heading h2-title"><a class="clip" href="#why-this-works-better" id="why-this-works-better">🔗</a><h2>Why This Works Better</h2></div><p>Moving the license check to React component level means:</p><ul><li><p><code>onInit()</code> completes immediately, so the web part always renders something</p></li><li><p>Users see a loading state instead of nothing</p></li><li><p>Network issues with the license API don&#39;t break the entire component</p></li><li><p>The error handling is more explicit</p></li></ul><p>The web part renders fast, then the license check happens. If it fails, users get a proper error message instead of a mysterious empty space.</p><div class="post-heading h2-title"><a class="clip" href="#what-we-learned" id="what-we-learned">🔗</a><h2>What We Learned</h2></div><p><code>async/await</code> syntax hides the blocking behavior. When you write <code>await someApiCall()</code>, it looks innocent, but in lifecycle methods like <code>onInit()</code>, that &quot;await&quot; can freeze your entire component.</p><p>The old <code>.then().catch()</code> pattern was more explicit about being asynchronous. With async/await, it&#39;s easy to accidentally create dependencies you didn&#39;t intend.</p><p>Framework lifecycle methods are usually the wrong place for optional API calls. Critical setup belongs in <code>onInit()</code>. Everything else should happen after the component renders.</p><div class="post-heading h2-title"><a class="clip" href="#the-simple-rule" id="the-simple-rule">🔗</a><h2>The Simple Rule</h2></div><p>If your web part can render without the data, don&#39;t <code>await</code> it in <code>onInit()</code>. Move it to component level where users can see loading states and proper error handling.</p><p>Your users will thank you for showing them something instead of nothing.</p><hr><p><strong>References:</strong></p><ul><li><p><a href="https://www.voitanos.io/blog/initialize-sharepoint-framework-components-constructor-oninit/">SPFx Basics: Constructor vs. onInit()</a></p></li><li><p><a href="https://sharepoint.stackexchange.com/questions/222515/sharepoint-framework-spfx-oninit-promises">SharePoint Framework onInit() Promises</a></p></li><li><p><a href="https://blog.aterentiev.com/async-render-spfx-web-parts">Async Render in SPFx Web Parts</a></p></li><li><p><a href="https://github.com/SharePoint/sp-dev-docs/issues/9062">GitHub Issue: SPFx WebPart Loading Issue</a></p></li></ul></main></article></div></body></html>
