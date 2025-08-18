@@ -18,20 +18,20 @@ export abstract class OurExtendedClientSideWebPart&lt;
       const version = this.context.manifest.version;
 
       // license check with licensing service
-      this.properties.license = (await LicensingService.HasValidLicense(
+      this.properties.license = await LicensingService.HasValidLicense(
         tenantId,
         userId,
         componentId,
         version,
         this.context
-      )) as ILicense;
+      );
     } catch (error) {
       // do the error handling..
     }
 
     return Promise.resolve();
   }
-}</code></pre><p>Just another async/await code.. with try-catch. What could go wrong?</p><div class="post-heading h2-title"><a class="clip" href="#the-promise-limbo" id="the-promise-limbo">🔗</a><h2>The Promise Limbo</h2></div><p>Apparently everything. But the tricky part was more subtle than we initially thought.</p><p>We had multiple layers of error handling - try-catch in <code>onInit()</code> AND try-catch inside our <code>LicensingService</code>. This gave us false confidence that everything was &quot;safe.&quot; The licensing service would catch any network errors and just return <code>false</code> instead of throwing.</p><p>But that was exactly our mistake. When a network request hangs indefinitely, it never gets to the point where it would resolve or reject. The licensing service just sits there waiting for a response that never comes. No error is thrown because there&#39;s no error - just a promise stuck in &quot;pending&quot; state forever.</p><p>So our try-catch blocks never run. Not because they can&#39;t catch the error, but because the promise never resolves OR rejects. It&#39;s stuck in limbo.</p><p>And here&#39;s the thing about SPFx - <code>render()</code> doesn&#39;t get called until <code>onInit()</code> completes. I&#39;m not entirely sure but it seems so if <code>onInit()</code> takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that <code>removeChild</code> error comes from. The framework expected a web part to be there, but <code>onInit()</code> never finished, so there&#39;s nothing to remove.</p><div class="post-heading h2-title"><a class="clip" href="#the-spfx-lifecycle-gotcha" id="the-spfx-lifecycle-gotcha">🔗</a><h2>The SPFx Lifecycle Gotcha</h2></div><p>SPFx has this lifecycle where <code>onInit()</code> has to complete before anything else happens. When you return a Promise from <code>onInit()</code>, the framework waits for it. Makes sense for critical initialization, but it also means any hanging promise will kill your component.</p><p>The Discord person&#39;s <code>.then().catch()</code> approach would work, but we realized we had a different problem. License validation wasn&#39;t optional - we actually needed to know if the user was licensed before rendering anything.</p><div class="post-heading h2-title"><a class="clip" href="#moving-the-check" id="moving-the-check">🔗</a><h2>Moving the Check</h2></div><p>Instead of trying to make the async call non-blocking, we moved the license check out of <code>onInit()</code> entirely. We created a wrapper React component that handles licensing at the component level:</p><pre><code class="not-prose language-typescript" data-lang="typescript">// Clean onInit - no API calls
+}</code></pre><p>Just another async/await code.. with try-catch. What could go wrong?</p><div class="post-heading h2-title"><a class="clip" href="#the-promise-limbo" id="the-promise-limbo">🔗</a><h2>The Promise Limbo</h2></div><p>Apparently everything. But the tricky part was more subtle than we initially thought.</p><p>We had multiple layers of error handling - try-catch in <code>onInit()</code> AND try-catch inside our <code>LicensingService</code>. This gave us false confidence that everything was &quot;safe.&quot; The licensing service would catch any network errors and just return <code>false</code> instead of throwing.</p><p>But that was exactly our mistake. When a network request hangs indefinitely, it never gets to the point where it would resolve or reject. The licensing service just sits there waiting for a response that never comes. No error is thrown because there&#39;s no error - just a promise stuck in &quot;pending&quot; state forever.</p><p>So our try-catch blocks never run. Not because they can&#39;t catch the error, but because the promise never resolves OR rejects. It&#39;s stuck in limbo.</p><p>And here&#39;s the thing about SPFx - <code>render()</code> doesn&#39;t get called until <code>onInit()</code> completes. I&#39;m not entirely sure but it seems so if <code>onInit()</code> takes too long, SPFx eventually gives up and tries to clean up the DOM element, which is where that <code>removeChild</code> error comes from. The framework expected a web part to be there, but <code>onInit()</code> never finished, so there&#39;s nothing to remove.</p><div class="post-heading h2-title"><a class="clip" href="#the-spfx-lifecycle-gotcha" id="the-spfx-lifecycle-gotcha">🔗</a><h2>The SPFx Lifecycle Gotcha</h2></div><p>SPFx has this lifecycle where <code>onInit()</code> has to complete before anything else happens. When you return a Promise from <code>onInit()</code>, the framework waits for it. Makes sense for critical initialization, but it also means any hanging promise will kill your component.</p><p>The Discord person&#39;s <code>.then().catch()</code> approach would work, but we realized we had a different problem. License validation wasn&#39;t optional - we actually needed to know if the user was licensed before rendering anything.</p><div class="post-heading h2-title"><a class="clip" href="#moving-the-check" id="moving-the-check">🔗</a><h2>Moving the Check</h2></div><p>Instead of trying to make the async call non-blocking, we moved the license check out of <code>onInit()</code> entirely. Thankfully, we already had wrapper component that wraps all of our webparts for setting a fluent theme, provide redux global states and etc. Licensing check now lives in this component level:</p><pre><code class="not-prose language-typescript" data-lang="typescript">// Clean onInit - no API calls
 protected async onInit(): Promise&lt;void&gt; {
   // other simple setups for the webpart like pnp and etc.
   return Promise.resolve();
@@ -39,42 +39,48 @@ protected async onInit(): Promise&lt;void&gt; {
 
 // Render method now uses the wrapper
 public render(): void {
-  const element = React.createElement(LicenseWrapper, {
+  const element = React.createElement(OurSampleWrapper, {
     context: this.context,
     componentId: this.context.manifest.id
   });
 
   ReactDom.render(element, this.domElement);
-}</code></pre><p>The <code>LicenseWrapper</code> component handles the async license check after the web part has already rendered:</p><pre><code class="not-prose language-typescript" data-lang="typescript">const LicenseWrapper: React.FC&lt;Props&gt; = ({
-  context,
-  componentId,
-  children,
-}) =&gt; {
+}</code></pre><p>The <code>OurSampleWrapper</code> component handles the async license check after the web part has already rendered:</p><pre><code class="not-prose language-typescript" data-lang="typescript">const OurSampleWrapper: React.FC&lt;Props&gt; = (props) =&gt; {
   const [license, setLicense] = useState&lt;ILicense | null&gt;(null);
+
+  // other stuff...
 
   useEffect(() =&gt; {
     const checkLicense = async () =&gt; {
       try {
         const licenseService = new LicenseService();
         const licenseResult = (await licenseService.validateLicense({
-          tenantId: context.pageContext.aadInfo.tenantId,
-          componentId,
-        })) as ILicense;
+          tenantId: props.context.pageContext.aadInfo.tenantId,
+          componentId: props.componentId,
+          //and other tenant infos
+        }))
         setLicense(licenseResult);
       } catch (error) {
-        console.warn(&quot;License check failed:&quot;, error);
-        setLicense({ expired: true } as ILicense);
+
+
       }
     };
 
     checkLicense();
   }, [context, componentId]);
 
+
   //  some more logics like loading skeleton and etc.
 
   if (license.expired) {
-    return &lt;TrialCard /&gt;;
+    return &lt;Unlicensed /&gt;;
   }
 
-  return &lt;&gt;{children}&lt;/&gt;;
+  return (&lt;Provider1&gt;
+            &lt;Provider2&gt;
+                &lt;Provider3&gt;
+                    {children}
+                &lt;Provider3/&gt;
+            &lt;Provider2/&gt;
+          &lt;Provider1/&gt;);
 };</code></pre><div class="post-heading h2-title"><a class="clip" href="#why-this-works-better" id="why-this-works-better">🔗</a><h2>Why This Works Better</h2></div><p>Moving the license check to React component level means:</p><ul><li><p><code>onInit()</code> completes immediately, so the web part always renders something</p></li><li><p>Users see a loading state instead of nothing</p></li><li><p>Network issues with the license API don&#39;t break the entire component</p></li><li><p>The error handling is more explicit</p></li></ul><p>The web part renders fast, then the license check happens. If it fails, users get a proper error message instead of a mysterious empty space.</p><div class="post-heading h2-title"><a class="clip" href="#what-we-learned" id="what-we-learned">🔗</a><h2>What We Learned</h2></div><p><code>async/await</code> syntax hides the blocking behavior. When you write <code>await someApiCall()</code>, it looks innocent, but in lifecycle methods like <code>onInit()</code>, that &quot;await&quot; can freeze your entire component.</p><p>The old <code>.then().catch()</code> pattern was more explicit about being asynchronous. With async/await, it&#39;s easy to accidentally create dependencies you didn&#39;t intend.</p><p>Framework lifecycle methods are usually the wrong place for optional API calls. Critical setup belongs in <code>onInit()</code>. Everything else should happen after the component renders.</p><div class="post-heading h2-title"><a class="clip" href="#the-simple-rule" id="the-simple-rule">🔗</a><h2>The Simple Rule</h2></div><p>If your web part can render without the data, don&#39;t <code>await</code> it in <code>onInit()</code>. Move it to component level where users can see loading states and proper error handling.</p><p>Your users will thank you for showing them something instead of nothing.</p><hr><p><strong>References:</strong></p><ul><li><p><a href="https://www.voitanos.io/blog/initialize-sharepoint-framework-components-constructor-oninit/">SPFx Basics: Constructor vs. onInit()</a></p></li><li><p><a href="https://sharepoint.stackexchange.com/questions/222515/sharepoint-framework-spfx-oninit-promises">SharePoint Framework onInit() Promises</a></p></li><li><p><a href="https://blog.aterentiev.com/async-render-spfx-web-parts">Async Render in SPFx Web Parts</a></p></li><li><p><a href="https://github.com/SharePoint/sp-dev-docs/issues/9062">GitHub Issue: SPFx WebPart Loading Issue</a></p></li></ul></main></article></div></body></html>
