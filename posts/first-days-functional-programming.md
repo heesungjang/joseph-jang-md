@@ -3,7 +3,7 @@ id = "first-days-functional-programming"
 title = "First few days into FP"
 abstract = "Functional programming isn't just different syntax. It's rewiring how you think about solving problems, and that mental shift is harder than any mathematical theory."
 tags = ["functional-programming"]
-date = 2024-08-19
+date = 2025-08-19
 status = "show"
 ---
 
