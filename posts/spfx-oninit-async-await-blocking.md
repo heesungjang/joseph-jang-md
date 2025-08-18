@@ -17,11 +17,11 @@ It might seem like an obvious silly mistake, but hopefully this helps somebody..
 
 ## Finding the Clue
 
-I was scrolling through a SharePoint developer Discord when someone shared this exact problem. They had a web part with a "phone home" feature that tracked usage by pinging their API from the `onInit()` method. Their solution caught my attention:
+I was scrolling through a SharePoint developer Discord when someone shared this exact problem. They had a custom web part which tracked usage by pinging their API from the `onInit()` method. Their solution caught my attention:
 
 > "Unfortunately, if the API service receiving these requests was down, the request would not complete or would take too long to complete, resulting in the onInit() method not returning and, subsequently, the web part not rendering.
 >
-> We fixed this by switching to the pattern fetch('https://....').then(...).catch(...) to ensure the PhoneHome component returns immediately, allowing onInit() to finish execution and the web part to render."
+> We fixed this by switching to the pattern fetch('https://....').then(...).catch(...) to ensure the custom web part component returns immediately, allowing onInit() to finish execution and the web part to render."
 
 That's when it clicked. We had the same pattern, just with a different API call.
 
